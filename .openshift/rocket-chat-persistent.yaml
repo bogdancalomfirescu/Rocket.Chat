@@ -2,8 +2,8 @@
 ##################
 # BEGIN TEMPLATE #
 ##################
-  kind: Template
-  apiVersion: v1
+  kind: "Template"
+  apiVersion: "v1"
   metadata:
     name: "rocket-chat"
     annotations:
@@ -23,76 +23,77 @@
 ########################
 ####### FrontEnd #######
 ########################
-  - kind: DeploymentConfig
-    apiVersion: "v1"
-    metadata:
-      name: "${APPLICATION_NAME}"
-      labels:
-        app: "${APPLICATION_NAME}"
-        deploymentConfig: "${APPLICATION_NAME}"
-      annotations:
-        description: "Defines how to deploy the frontend server"
-    spec:
-      replicas: 1
-      selector:
-        app: "${APPLICATION_NAME}"
-        deploymentconfig: "${APPLICATION_NAME}"
-      strategy:
-        type: "Rolling"
-        rollingParams:
-          updatePeriodSeconds: 1
-          intervalSeconds: 1
-          timeoutSeconds: 600
-          maxUnavailable: 25%
-          maxSurge: 25%
-        resources: {}
-      template:
-        metadata:
-          labels:
-            app: "${APPLICATION_NAME}"
-            deploymentconfig: "${APPLICATION_NAME}"
-        spec:
-          containers:
-           - name: "${APPLICATION_NAME}"
-             image: rocketchat/rocket.chat:latest
-             ports:
-               - containerPort: 8080
-                 protocol: TCP
-               - containerPort: 8443
-                 protocol: TCP
-             env:
-               - name: MONGO_URL
-                 value: mongodb://${MONGODB_USER}:${MONGODB_PASSWORD}@mongodb:27017/${MONGODB_DATABASE}
-             resources: {}
-             terminationMessagePath: "/dev/termination-log"
-             securityContext:
-               capabilities: {}
-               privileged: false
-             restartPolicy: "Always"
-             terminationGracePeriodSeconds: 30
-             dnsPolicy: "ClusterFirst"
-             imagePullPolicy: "Always"
-             volumeMounts:
-               - name: "${APPLICATION_NAME}-volume"
-                 mountPath: "/app/uploads"
-         volumes:
-          - name: "${APPLICATION_NAME}-volume"
-     triggers:
-       - type: "ConfigChange"
-       - type: "ImageChange"
-         imageChangeParams:
-           automatic: true
-           containerNames:
-             - "${APPLICATION_NAME}"
-           from:
-             kind: ImageStreamTag
-             namespace: openshift
-             name: rocket.chat:latest
+    - kind: "DeploymentConfig"
+      apiVersion: "v1"
+      metadata:
+        name: "${APPLICATION_NAME}"
+        labels:
+          app: "${APPLICATION_NAME}"
+          deploymentConfig: "${APPLICATION_NAME}"
+        annotations:
+          description: "Defines how to deploy the frontend server"
+      spec:
+        replicas: 1
+        selector:
+          app: "${APPLICATION_NAME}"
+          deploymentconfig: "${APPLICATION_NAME}"
+        strategy:
+          type: "Rolling"
+          rollingParams:
+            updatePeriodSeconds: 1
+            intervalSeconds: 1
+            timeoutSeconds: 600
+            maxUnavailable: 25%
+            maxSurge: 25%
+          resources: {}
+        template:
+          metadata:
+            name: "${APPLICATION_NAME}"
+            labels:
+              app: "${APPLICATION_NAME}"
+              deploymentconfig: "${APPLICATION_NAME}"
+          spec:
+            containers:
+              - name: "${APPLICATION_NAME}"
+                image: rocketchat/rocket.chat:latest
+                ports:
+                  - containerPort: 8080
+                    protocol: TCP
+                  - containerPort: 8443
+                    protocol: TCP
+                env:
+                  - name: MONGO_URL
+                    value: mongodb://${MONGODB_USER}:${MONGODB_PASSWORD}@mongodb:27017/${MONGODB_DATABASE}
+                resources: {}
+                terminationMessagePath: "/dev/termination-log"
+                securityContext:
+                  capabilities: {}
+                  privileged: false
+                restartPolicy: "Always"
+                terminationGracePeriodSeconds: 30
+                dnsPolicy: "ClusterFirst"
+                imagePullPolicy: "Always"
+                volumeMounts:
+                  - name: "${APPLICATION_NAME}-volume"
+                    mountPath: "/app/uploads"
+            volumes:
+              - name: "${APPLICATION_NAME}-volume"
+        triggers:
+          - type: "ConfigChange"
+          - type: "ImageChange"
+            imageChangeParams:
+              automatic: true
+              containerNames:
+                - "${APPLICATION_NAME}"
+              from:
+                kind: ImageStreamTag
+                namespace: openshift
+                name: rocket.chat:latest
 ########################
 ####### BackEnd ########
 ########################  
-    - kind: DeploymentConfig
-      apiVersion: v1
+    - kind: "DeploymentConfig"
+      apiVersion: "v1"
       metadata:
         name: "${DATABASE_SERVICE_NAME}"
         labels:
@@ -257,8 +258,8 @@
 ########################
 ######## Route #########
 ########################     
-- kind: PersistentVolumeClaim
-  apiVersion: v1
+- kind: "PersistentVolumeClaim"
+  apiVersion: "v1"
   metadata:
     name: "${DATABASE_SERVICE_NAME}"
   spec:
