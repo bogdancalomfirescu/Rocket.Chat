@@ -2,17 +2,17 @@
 ##################
 # BEGIN TEMPLATE #
 ##################
-  kind: "Template"
-  apiVersion: "v1"
-  metadata:
-    name: "rocket-chat"
-    annotations:
-      description: "Rocket.Chat with a MongoDB database running with a Persistent storage"
-      tags: "quickstart,nodejs,mongodb,instant-app,kermit"
-      iconClass: "icon-nodejs"
-  labels: 
-    template: "rocket-chat"
-  objects:
+kind: "Template"
+apiVersion: "v1"
+metadata:
+  name: "rocket-chat"
+  annotations:
+    description: "Rocket.Chat with a MongoDB database running with a Persistent storage"
+    tags: "quickstart,nodejs,mongodb,instant-app,kermit"
+    iconClass: "icon-nodejs"
+labels: 
+  template: "rocket-chat"
+objects:
 ###################
 # Layer 2: Images #
 ###################
@@ -23,165 +23,152 @@
 ########################
 ####### FrontEnd #######
 ########################
-    - kind: "DeploymentConfig"
-      apiVersion: "v1"
+- kind: "DeploymentConfig"
+  apiVersion: "v1"
+  metadata:
+    name: "${APPLICATION_NAME}"
+    labels:
+      name: "${APPLICATION_NAME}"
+    annotations:
+      description: "Defines how to deploy the frontend server"
+  spec:
+    replicas: 1
+    selector:
+      name: "${APPLICATION_NAME}"
+    strategy:
+      type: "Rolling"
+      rollingParams:
+        updatePeriodSeconds: 1
+        intervalSeconds: 1
+        timeoutSeconds: 600
+        maxUnavailable: 25%
+        maxSurge: 25%
+      resources: {}
+    template:
       metadata:
         name: "${APPLICATION_NAME}"
         labels:
-          app: "${APPLICATION_NAME}"
-          deploymentConfig: "${APPLICATION_NAME}"
-        annotations:
-          description: "Defines how to deploy the frontend server"
+          name: "${APPLICATION_NAME}"
       spec:
-        replicas: 1
-        selector:
-          app: "${APPLICATION_NAME}"
-          deploymentconfig: "${APPLICATION_NAME}"
-        strategy:
-          type: "Rolling"
-          rollingParams:
-            updatePeriodSeconds: 1
-            intervalSeconds: 1
-            timeoutSeconds: 600
-            maxUnavailable: 25%
-            maxSurge: 25%
-          resources: {}
-        template:
-          metadata:
-            name: "${APPLICATION_NAME}"
-            labels:
-              app: "${APPLICATION_NAME}"
-              deploymentconfig: "${APPLICATION_NAME}"
-          spec:
-            containers:
-              - name: "${APPLICATION_NAME}"
-                image: rocketchat/rocket.chat:latest
-                ports:
-                  - containerPort: 8080
-                    protocol: TCP
-                  - containerPort: 8443
-                    protocol: TCP
-                env:
-                  - name: MONGO_URL
-                    value: mongodb://${MONGODB_USER}:${MONGODB_PASSWORD}@mongodb:27017/${MONGODB_DATABASE}
-                resources: {}
-                terminationMessagePath: "/dev/termination-log"
-                securityContext:
-                  capabilities: {}
-                  privileged: false
-                restartPolicy: "Always"
-                terminationGracePeriodSeconds: 30
-                dnsPolicy: "ClusterFirst"
-                imagePullPolicy: "Always"
-                volumeMounts:
-                  - name: "${APPLICATION_NAME}-volume"
-                    mountPath: "/app/uploads"
-            volumes:
+        containers:
+          - name: "${APPLICATION_NAME}"
+            image: rocketchat/rocket.chat:latest
+            ports:
+              - containerPort: 3000
+                protocol: TCP
+            env:
+              - name: MONGO_URL
+                value: mongodb://${MONGODB_USER}:${MONGODB_PASSWORD}@mongodb:27017/${MONGODB_DATABASE}
+            resources: {}
+            terminationMessagePath: "/dev/termination-log"
+            securityContext:
+              capabilities: {}
+              privileged: false
+            restartPolicy: "Always"
+            terminationGracePeriodSeconds: 30
+            dnsPolicy: "ClusterFirst"
+            imagePullPolicy: "Always"
+            volumeMounts:
               - name: "${APPLICATION_NAME}-volume"
-        triggers:
-          - type: "ConfigChange"
-          - type: "ImageChange"
-            imageChangeParams:
-              automatic: true
-              containerNames:
-                - "${APPLICATION_NAME}"
-              from:
-                kind: ImageStreamTag
-                namespace: openshift
-                name: rocket.chat:latest
+                mountPath: "/app/uploads"
+        volumes:
+          - name: "${APPLICATION_NAME}-volume"
+    triggers:
+      - type: "ConfigChange"
+      - type: "ImageChange"
+        imageChangeParams:
+          automatic: true
+          containerNames:
+            - "${APPLICATION_NAME}"
+          from:
+            kind: ImageStreamTag
+            namespace: openshift
+            name: rocket.chat:latest
 ########################
 ####### BackEnd ########
 ########################  
-    - kind: "DeploymentConfig"
-      apiVersion: "v1"
+- apiVersion: "v1"
+  kind: "DeploymentConfig"
+  metadata:
+    creationTimestamp: null
+    name: ${DATABASE_SERVICE_NAME}
+    labels:
+      name: "${DATABASE_SERVICE_NAME}"
+    annotations:
+      description: "Defines how to deploy the database"
+  spec:
+    replicas: 1
+    selector:
+      name: "${DATABASE_SERVICE_NAME}"
+    strategy:
+      type: "Recreate"
+    template:
       metadata:
-        name: "${DATABASE_SERVICE_NAME}"
+        creationTimestamp: null
         labels:
-          app: "${APPLICATION_NAME}"
-          deploymentConfig: "${DATABASE_SERVICE_NAME}"
-        annotations:
-          description: "Defines how to deploy the database"
+          name: ${DATABASE_SERVICE_NAME}
       spec:
-        replicas: 1
-        selector:
-          app: "${APPLICATION_NAME}"
-          deploymentconfig: "${DATABASE_SERVICE_NAME}"
-        strategy:
-          type: "Recreate"
-          recreateParams:
-            timeoutSeconds: 600
-        template:
-          metadata:
-            name: "${DATABASE_SERVICE_NAME}"
-            labels:
-              app: "${APPLICATION_NAME}"
-              deploymentConfig: "${DATABASE_SERVICE_NAME}"
-          spec:
-            containers:
-              - name: "mongodb"
-                image: registry.access.redhat.com/rhscl/mongodb-26-rhel7:latest
-                ports:
-                  - containerPort: 27017
-                    protocol: TCP
-                readinessProbe:
-                  initialDelaySeconds: 3
-                  timeoutSeconds: 1
-                  periodSeconds: 10
-                  successThreshold: 1
-                  failureThreshold: 3 
-                  exec:
-                    command:
-                      - "/bin/sh"
-                      - "-i"
-                      - "-c"
-                      - mongo 127.0.0.1:27017/$MONGODB_DATABASE -u $MONGODB_USER -p $MONGODB_PASSWORD
-                        --eval="quit()"
-                livenessProbe:
-                  initialDelaySeconds: 30
-                  timeoutSeconds: 1
-                  periodSeconds: 10
-                  successThreshold: 1
-                  failureThreshold: 3               
-                  tcpSocket:
-                    port: 27017
-                env:
-                  - name: MONGODB_USER
-                    value: "${MONGODB_USER}"
-                  - name: MONGODB_PASSWORD
-                    value: "${MONGODB_PASSWORD}"
-                  - name: MONGODB_DATABASE
-                    value: "${MONGODB_DATABASE}"
-                  - name: MONGODB_ADMIN_PASSWORD
-                    value: "${MONGODB_ADMIN_PASSWORD}"
-                resources:
-                  limits:
-                    memory: "${MEMORY_LIMIT}"
-                terminationMessagePath: "/dev/termination-log"
-                securityContext:
-                  capabilities: {}
-                  privileged: false
-                restartPolicy: "Always"
-                terminationGracePeriodSeconds: 30
-                dnsPolicy: "ClusterFirst"
-                imagePullPolicy: "IfNotPresent"
-                volumeMounts:
-                  - name: "${DATABASE_SERVICE_NAME}-volume"
-                    mountPath: "/var/lib/mongodb/data"
-            volumes:
-              - name: "${DATABASE_SERVICE_NAME}-volume"
-                persistentVolumeClaim:
-                  claimName: "${DATABASE_SERVICE_NAME}-pvc"
-        triggers:
-          - type: "ImageChange"
-            imageChangeParams:
-              automatic: true
-                containerNames:
-                  - "mongodb"
-                from:
-                  kind: "ImageStreamTag"
-                  namespace: "openshift"
-                  name: "mongodb:latest"
-          - type: ConfigChange
+        containers:
+        - capabilities: {}
+          env:
+          - name: MONGODB_USER
+            value: ${MONGODB_USER}
+          - name: MONGODB_PASSWORD
+            value: ${MONGODB_PASSWORD}
+          - name: MONGODB_DATABASE
+            value: ${MONGODB_DATABASE}
+          - name: MONGODB_ADMIN_PASSWORD
+            value: ${MONGODB_ADMIN_PASSWORD}
+          image: ' '
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            initialDelaySeconds: 30
+            tcpSocket:
+              port: 27017
+            timeoutSeconds: 1
+          name: "${DATABASE_SERVICE_NAME}"
+          ports:
+          - containerPort: 27017
+            protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -i
+              - -c
+              - mongo 127.0.0.1:27017/$MONGODB_DATABASE -u $MONGODB_USER -p $MONGODB_PASSWORD
+                --eval="quit()"
+            initialDelaySeconds: 3
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: ${MEMORY_LIMIT}
+          securityContext:
+            capabilities: {}
+            privileged: false
+          terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /var/lib/mongodb/data
+            name: ${DATABASE_SERVICE_NAME}-volume
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        volumes:
+        - name: ${DATABASE_SERVICE_NAME}-volume
+          persistentVolumeClaim:
+            claimName: ${DATABASE_SERVICE_NAME}-pvc
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - mongodb
+        from:
+          kind: ImageStreamTag
+          name: mongodb:latest
+          namespace: ${NAMESPACE}
+        lastTriggeredImage: ""
+      type: ImageChange
+    - type: ConfigChange
+  status: {}
 #########################
 # Layer 4: Abstractions #
 #########################
@@ -191,20 +178,17 @@
 - kind: "Service"
   apiVersion: "v1"
   metadata:
-    name: "${DATABASE_SERVICE_NAME}"
+    name: "${APPLICATION_NAME}"
     annotations: 
-      description: "Exposes the database server"
-    labels:
-      app: "${APPLICATION_NAME}"
+      description: "Exposes and load balances the application pods"
   spec:
     ports:
-    - name: "mongo"
-      protocol: TCP
-      port: 27017
-      targetPort: 27017
+      - name: 3000-tcp
+        port: 3000
+        protocol: TCP
+        targetPort: 3000
     selector:
-      app: "${APPLICATION_NAME}"
-      deploymentconfig: "${DATABASE_SERVICE_NAME}"
+      name: "${APPLICATION_NAME}"
     type: ClusterIP
     sessionAffinity: None
   status:
@@ -215,24 +199,17 @@
 - kind: "Service"
   apiVersion: "v1"
   metadata:
-    name: "${APPLICATION_NAME}"
+    name: "${DATABASE_SERVICE_NAME}"
     annotations: 
-      description: "Exposes and load balances the application pods"
-    labels:
-      app: "${APPLICATION_NAME}"
+      description: "Exposes the database server"
   spec:
     ports:
-      - name: 8080-tcp
-        port: 8080
-        protocol: TCP
-        targetPort: 8080
-      - name: 8443-tcp
-        port: 8443
-        protocol: TCP
-        targetPort: 8443
+    - name: "mongo"
+      protocol: TCP
+      port: 27017
+      targetPort: 27017
     selector:
-      app: "${APPLICATION_NAME}"
-      deploymentconfig: "${APPLICATION_NAME}"
+      name: "${DATABASE_SERVICE_NAME}"
     type: ClusterIP
     sessionAffinity: None
   status:
@@ -245,7 +222,7 @@
   metadata:
     name: "${APPLICATION_NAME}"
     labels:
-      app: "${APPLICATION_NAME}"
+      name: "${APPLICATION_NAME}"
     annotations:
       description: "Route for application's service"
   spec:
@@ -254,14 +231,14 @@
       kind: "Service"
       name:  "${APPLICATION_NAME}"
     port:
-      targetPort: "8080-tcp"
+      targetPort: "3000-tcp"
 ########################
-######## Route #########
+######### PVC #########
 ########################     
 - kind: "PersistentVolumeClaim"
   apiVersion: "v1"
   metadata:
-    name: "${DATABASE_SERVICE_NAME}"
+    name: "${DATABASE_SERVICE_NAME}-pvc"
   spec:
     accessModes:
     - ReadWriteOnce
